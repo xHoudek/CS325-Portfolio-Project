@@ -10,7 +10,7 @@ import pygame
 from pygame.locals import *
 
 
-ICON = pygame.image.load("./Portfolio/ms_icon.png")
+ICON = pygame.image.load("./ms_icon.png")
 
 # CONSTANTS
 BG = (211, 211, 211)
@@ -161,13 +161,10 @@ class Menu:
                 # start game with selected difficulty if clicked
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if self.easy.is_over(pos):
-                        print("Difficulty selected: easy")
                         self.start_game(0)
                     elif self.medium.is_over(pos):
-                        print("Difficulty selected: medium")
                         self.start_game(1)
                     elif self.hard.is_over(pos):
-                        print("Difficulty selected: hard")
                         self.start_game(2)
 
                 # change button color in event of mouseover
@@ -360,6 +357,7 @@ class Game:
         return False
 
 def main():
+    print("Game made by Xander Houdek")
     menu = Menu()
     menu.start()
 
