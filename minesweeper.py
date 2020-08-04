@@ -3,9 +3,7 @@
 # minesweeper.py - a clone of the game Minesweeper, used for my
 # CS325 Algorithms portfolio project
 
-import sys
 import random
-import time
 import pygame
 from pygame.locals import *
 
@@ -35,6 +33,11 @@ DIFFICULTY = [  # (grid size, # of mines)
 TEXT_COLOR = [
     BLUE, GREEN, RED, NAVY, MAROON, TURQUOISE, BLACK, MED_GRAY
 ]
+
+# Used to check all adjacent cells
+PROXIMITY = [
+            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
+            ]
 
 
 class Button:
@@ -75,10 +78,9 @@ class Cell:
     def __init__(self, x, y, level, cells):
         self.x = x 
         self.y = y
-        self.width = 750//level[0] - 5
-        self.height = 750//level[0] - 5
-        self.x_pos = 5 + (self.width + 5) * self.x
-        self.y_pos = 105 + (self.height + 5) * self.y
+        self.length = 750//level[0] - 5
+        self.x_pos = 5 + (self.length + 5) * self.x
+        self.y_pos = 105 + (self.length + 5) * self.y
         self.color = MED_GRAY
         self.visible = False
         self.flag = False
@@ -95,10 +97,7 @@ class Cell:
             self.color = MAROON
             return False
         if self.number == 0:
-            proximity = [
-            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
-            ]
-            for mod in proximity:
+            for mod in PROXIMITY:
                 oob = [-1, self.level[0]]   # out of bounds
                 if self.y+mod[1] not in oob and self.x+mod[0] not in oob:
                     if self.cells[self.y+mod[1]][self.x+mod[0]].visible == False:
@@ -113,17 +112,17 @@ class Cell:
             return False
 
     def draw(self, win):
-        pygame.draw.rect(win, self.color, (self.x_pos,self.y_pos,self.width,self.height), 0)
+        pygame.draw.rect(win, self.color, (self.x_pos,self.y_pos,self.length,self.length), 0)
 
         if self.number != 0 and self.visible == True:
             font = pygame.font.SysFont(None, 48)
             text = font.render(str(self.number), 1, self.text_color)
-            win.blit(text, (self.x_pos + (self.width//2 - text.get_width()//2), self.y_pos + (self.height//2 - text.get_height()//2)))
+            win.blit(text, (self.x_pos + (self.length//2 - text.get_width()//2), self.y_pos + (self.length//2 - text.get_height()//2)))
 
     def is_over(self, pos):
         """Determines if mouse position is over the button"""
-        if pos[0] > self.x_pos and pos[0] < self.x_pos + self.width:
-            if pos[1] > self.y_pos and pos[1] < self.y_pos + self.height:
+        if pos[0] > self.x_pos and pos[0] < self.x_pos + self.length:
+            if pos[1] > self.y_pos and pos[1] < self.y_pos + self.length:
                 return True
         return False
 
@@ -212,6 +211,7 @@ class Game:
         self.state = "IN_PROGRESS"
         self.flags = 0
         self.font = pygame.font.SysFont(None, 48)
+        self.verify = Button(500, 20, 220, 60, "Verify Flags", MED_GRAY)
         
         # initialize all cells in a matrix
         self.cells = []
@@ -231,12 +231,9 @@ class Game:
                     searching = False
 
         # assign numbers to each cell depending on mine proximity
-        proximity = [
-            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
-            ]
         for row in self.cells:
             for cell in row:
-                for mod in proximity:
+                for mod in PROXIMITY:
                     if cell.mine == False:
                         oob = [-1, self.level[0]]   # out of bounds
                         if cell.y+mod[1] not in oob and cell.x+mod[0] not in oob:
@@ -264,6 +261,7 @@ class Game:
             text_x = text.get_rect().width
             text_y = text.get_rect().height
             self.screen.blit(text,((350 - (text_x // 2)),(50 - (text_y // 2))))
+            self.verify.draw(self.screen)
 
         elif self.state == "WON":
             text = self.font.render("You Win!", True, DARK_GRAY)
@@ -304,6 +302,10 @@ class Game:
                                         cell.color = DARK_GRAY
                                     else:
                                         cell.color = MED_GRAY
+                        if self.verify.is_over(pos):
+                            self.verify.color = DARK_GRAY
+                        else:
+                            self.verify.color = MED_GRAY
 
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 3:    # right click
@@ -332,6 +334,12 @@ class Game:
                                                 cell.flag = False
                                                 cell.color = BG
                                                 self.flags -= 1
+                            if self.verify.is_over(pos):
+                                verified = self.verify_flags()
+                                if verified:
+                                    print("This is a possible solution.")
+                                else:
+                                    print("This solution is either not possible, or not enough mines are flagged.")
 
             victory = self.check_victory()
             if victory == True:
@@ -347,6 +355,8 @@ class Game:
         pygame.display.update()
 
     def check_victory(self):
+        if self.state == "LOST":
+            return False
         hidden_cells = 0
         for row in self.cells:
             for cell in row:
@@ -356,8 +366,27 @@ class Game:
             return True
         return False
 
+    def verify_flags(self):
+        """This part is for the portfolio project. Verifies if flag placement
+        is consistent with the numbers on screen, in polynomial time"""
+
+        for row in self.cells:
+            for cell in row:
+                if cell.visible == True:
+                    adjacent_flags = 0
+                    for mod in PROXIMITY:
+                        oob = [-1, cell.level[0]]   # out of bounds
+                        if cell.y+mod[1] not in oob and cell.x+mod[0] not in oob:
+                            neighbor = self.cells[cell.y+mod[1]][cell.x+mod[0]]
+                            if neighbor.flag == True:
+                                adjacent_flags += 1
+                    if adjacent_flags != cell.number:
+                        return False
+        return True
+
 def main():
     print("Game made by Xander Houdek")
+    print()
     menu = Menu()
     menu.start()
 
