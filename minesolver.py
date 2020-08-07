@@ -86,6 +86,7 @@ class ModdedGame(Game):
         self.draw()
         running = True
         solved = False
+        count = 0
         while running:
 
             # solving algorithm
@@ -106,6 +107,8 @@ class ModdedGame(Game):
                     guess = self.make_guess()
                     if guess == False:
                         solved = True
+                count += 1
+                print(count)
 
             # quit game
             for event in pygame.event.get():
